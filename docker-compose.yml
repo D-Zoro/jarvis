@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  mcp-server:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile.dev 
+    container_name: jarvis-controller
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./mcp-server:/app
+      - /app/node_modules
+    environment:
+      - AI_BACKEND_URL=http://langchain-server:8001
+    depends_on:
+      - langchain-server
+    networks:
+      - jarvis-net
+    stdin_open: true
+    tty: true
+
+  langchain-server:
+    build: ./langchain-server 
+    container_name: jarvis-ai-core
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./langchain-server:/app
+    env_file:
+      - ./langchain-server/.env
+    depends_on:
+      - chromadb
+    networks:
+      - jarvis-net
+
+  chromadb:
+    image: chromadb/chroma:0.5.0
+    container_name: jarvis-memory-db
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma-data:/chroma/.chroma/
+    networks:
+      - jarvis-net
+
+networks:
+  jarvis-net:
+    driver: bridge
+
+volumes:
+  chroma-data:
+    driver: local

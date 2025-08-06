@@ -1,0 +1,48 @@
+{
+  "name": "jarvis",
+  "version": "1.0.0",
+  "description": "just a rather very intelligent system ;)",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/D-Zoro/jarvis.git"
+  },
+  "keywords": [
+    "ai",
+    "langchain",
+    "mcp",
+    "vectordb"
+  ],
+  "author": "neonpulse",
+  "license": "MIT",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/D-Zoro/jarvis/issues"
+  },
+  "homepage": "https://github.com/D-Zoro/jarvis#readme",
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/inquirer": "^9.0.9",
+    "@types/node": "^24.2.0",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "axios": "^1.11.0",
+    "chalk": "^5.5.0",
+    "chromadb": "^3.0.10",
+    "commander": "^14.0.0",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "inquirer": "^12.9.0",
+    "langchain": "^0.3.30",
+    "uuid": "^11.1.0"
+  }
+}
