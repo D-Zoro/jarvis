@@ -1,0 +1,21 @@
+[project]
+name = "jarvis"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.72.0",
+    "elevenlabs>=2.22.0",
+    "google-api-python-client>=2.187.0",
+    "google-auth-httplib2>=0.2.1",
+    "google-auth-oauthlib>=1.2.3",
+    "langchain>=1.0.5",
+    "langgraph>=1.0.2",
+    "openai>=2.7.1",
+    "pinecone-client>=6.0.0",
+    "pyairtable>=3.3.0",
+    "pydub>=0.25.1",
+    "python-telegram-bot>=22.5",
+    "speechrecognition>=3.14.3",
+]
