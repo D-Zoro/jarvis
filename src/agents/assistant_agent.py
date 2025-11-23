@@ -3,14 +3,14 @@ from typing import TypedDict, Annotated, Sequence
 import operator
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
-from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from config import Config
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from src.config import Config
 
-from agents.calendar_agent import CalendarAgent
-from agents.email_agent import EmailAgent
-from agents.contact_agent import ContactAgent
-from agents.expense_agent import ExpenseAgent
+from src.agents.calendar_agent import CalendarAgent
+from src.agents.email_agent import EmailAgent
+from src.agents.contact_agent import ContactAgent
+from src.agents.expense_agent import ExpenseAgent
 
 class AgentState(TypedDict):
     """State passed between agents in the graph"""
@@ -21,9 +21,9 @@ class AgentState(TypedDict):
 
 class AssistantAgent:
     def __init__(self):
-        self.llm = ChatOpenAI(
-            model="gpt-4-turbo-preview",
-            openai_api_key=Config.OPENAI_API_KEY,
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-pro",
+            google_api_key=Config.GOOGLE_API_KEY,
             temperature=0
         )
         

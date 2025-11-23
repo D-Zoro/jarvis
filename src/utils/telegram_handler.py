@@ -2,11 +2,11 @@
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 import os
-from config import Config
-from agents.assistant_agent import AssistantAgent
-from agents.jarvis_personality import JarvisPersonality
-from utils.voice_handler import VoiceHandler
-from utils.text_to_speech import TextToSpeechHandler
+from src.config import Config
+from src.agents.assistant_agent import AssistantAgent
+from src.agents.jarvis_personality import JarvisPersonality
+from src.utils.voice_handler import VoiceHandler
+from src.utils.text_to_speech import TextToSpeechHandler
 
 class TelegramHandler:
     def __init__(self):
@@ -31,9 +31,6 @@ class TelegramHandler:
         # Add JARVIS personality
         jarvis_response = self.jarvis_personality.generate_response(agent_response)
         
-        # Send text response
-        await update.message.reply_text(jarvis_response)
-        
         # Convert to speech and send audio
         try:
             audio_bytes = self.tts_handler.convert_text_to_speech(jarvis_response)
@@ -50,6 +47,8 @@ class TelegramHandler:
             os.remove(audio_path)
         except Exception as e:
             print(f"TTS Error: {e}")
+            # Fallback to text response if voice fails
+            await update.message.reply_text(jarvis_response)
     
     async def handle_voice(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle voice messages"""
@@ -74,9 +73,6 @@ class TelegramHandler:
         # Add JARVIS personality
         jarvis_response = self.jarvis_personality.generate_response(agent_response)
         
-        # Send text response
-        await update.message.reply_text(jarvis_response)
-        
         # Convert to speech and send audio
         try:
             audio_bytes = self.tts_handler.convert_text_to_speech(jarvis_response)
@@ -90,6 +86,8 @@ class TelegramHandler:
             os.remove(audio_path)
         except Exception as e:
             print(f"TTS Error: {e}")
+            # Fallback to text response if voice fails
+            await update.message.reply_text(jarvis_response)
     
     def run(self):
         """Start the bot"""

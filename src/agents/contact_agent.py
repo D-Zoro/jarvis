@@ -1,17 +1,16 @@
 
 from typing import List
-from langchain.agents import AgentExecutor, create_openai_tools_agent
-from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.tools import Tool
+from langchain.agents import create_agent
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.tools import tool
 from pyairtable import Table
-from config import Config
+from src.config import Config
 
 class ContactAgent:
     def __init__(self):
-        self.llm = ChatOpenAI(
-            model="gpt-4-turbo-preview",
-            openai_api_key=Config.OPENAI_API_KEY
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-pro",
+            google_api_key=Config.GOOGLE_API_KEY
         )
         
         self.table = Table(
@@ -26,32 +25,48 @@ Tools available:
 - get_contact: Retrieve contact information by name
 - search_contacts: Search for contacts
 - add_contact: Add a new contact
-- update_contact: Update existing contact information
 
 Always provide accurate contact information."""
         
-        self.tools = self._create_tools()
-        self.agent = self._create_agent()
+        self.agent = create_agent(
+            model=self.llm,
+            tools=self._create_tools(),
+            system_prompt=self.system_prompt
+        )
     
-    def _create_tools(self) -> List[Tool]:
+    def _create_tools(self) -> List:
         """Create contact-related tools"""
-        return [
-            Tool(
-                name="get_contact",
-                func=self._get_contact,
-                description="Get contact information by name. Input should be the contact name as a string."
-            ),
-            Tool(
-                name="search_contacts",
-                func=self._search_contacts,
-                description="Search for contacts. Input should be a search query as a string."
-            ),
-            Tool(
-                name="add_contact",
-                func=self._add_contact,
-                description="Add a new contact. Input should be a dict with 'name', 'email', and optional 'phone'."
-            )
-        ]
+        
+        @tool
+        def get_contact(name: str) -> str:
+            """Get contact information by name.
+            
+            Args:
+                name: The name of the contact to retrieve
+            """
+            return self._get_contact(name)
+        
+        @tool
+        def search_contacts(query: str) -> str:
+            """Search for contacts.
+            
+            Args:
+                query: Search query to find contacts
+            """
+            return self._search_contacts(query)
+        
+        @tool
+        def add_contact(name: str, email: str, phone: str = "") -> str:
+            """Add a new contact.
+            
+            Args:
+                name: Contact name
+                email: Contact email address
+                phone: Optional phone number
+            """
+            return self._add_contact({"name": name, "email": email, "phone": phone})
+        
+        return [get_contact, search_contacts, add_contact]
     
     def _get_contact(self, name: str) -> str:
         """Get contact by name"""
@@ -108,19 +123,14 @@ Always provide accurate contact information."""
         except Exception as e:
             return f"Error adding contact: {str(e)}"
     
-    def _create_agent(self) -> AgentExecutor:
-        """Create the contact agent"""
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", self.system_prompt),
-            MessagesPlaceholder(variable_name="chat_history", optional=True),
-            ("human", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
-        ])
-        
-        agent = create_openai_tools_agent(self.llm, self.tools, prompt)
-        return AgentExecutor(agent=agent, tools=self.tools, verbose=True)
-    
     def run(self, query: str) -> str:
         """Execute contact agent"""
-        result = self.agent.invoke({"input": query})
-        return result["output"]
+        result = self.agent.invoke({"messages": [{"role": "user", "content": query}]})
+        messages = result.get("messages", [])
+        if messages:
+            last_message = messages[-1]
+            if hasattr(last_message, 'content'):
+                return last_message.content
+            elif isinstance(last_message, dict):
+                return last_message.get('content', str(last_message))
+        return str(result)

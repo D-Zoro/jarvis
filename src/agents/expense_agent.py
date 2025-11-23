@@ -1,25 +1,27 @@
 
 from typing import List
-from langchain.agents import AgentExecutor, create_openai_tools_agent
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.tools import Tool
+from langchain.agents import create_agent
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_core.tools import tool
 from pinecone import Pinecone
-from config import Config
+from src.config import Config
 import gspread
 from google.oauth2.service_account import Credentials
 
 class ExpenseAgent:
     def __init__(self):
-        self.llm = ChatOpenAI(
-            model="gpt-4-turbo-preview",
-            openai_api_key=Config.OPENAI_API_KEY
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-pro",
+            google_api_key=Config.GOOGLE_API_KEY
         )
         
         # Initialize Pinecone for vector search
         self.pc = Pinecone(api_key=Config.PINECONE_API_KEY)
         self.index = self.pc.Index(Config.PINECONE_INDEX_NAME)
-        self.embeddings = OpenAIEmbeddings()
+        self.embeddings = GoogleGenerativeAIEmbeddings(
+            model="models/embedding-001",
+            google_api_key=Config.GOOGLE_API_KEY
+        )
         
         self.system_prompt = """You are a Personal Expense Agent. Your role is to provide accurate and relevant information about the user's expenses.
 
@@ -35,28 +37,45 @@ When to use each tool:
 
 Always provide clear, actionable insights about expenses."""
         
-        self.tools = self._create_tools()
-        self.agent = self._create_agent()
+        self.agent = create_agent(
+            model=self.llm,
+            tools=self._create_tools(),
+            system_prompt=self.system_prompt
+        )
     
-    def _create_tools(self) -> List[Tool]:
+    def _create_tools(self) -> List:
         """Create expense-related tools"""
-        return [
-            Tool(
-                name="query_expenses",
-                func=self._query_expenses,
-                description="Search expense history using semantic search. Input should be a natural language query about expenses."
-            ),
-            Tool(
-                name="get_credit_card_transactions",
-                func=self._get_credit_card_transactions,
-                description="Get credit card transactions. Input should be a dict with optional 'start_date' and 'end_date'."
-            ),
-            Tool(
-                name="calculate_spending",
-                func=self._calculate_spending,
-                description="Calculate total spending. Input should be a dict with 'category' and/or 'time_period'."
-            )
-        ]
+        
+        @tool
+        def query_expenses(query: str) -> str:
+            """Search expense history using semantic search.
+            
+            Args:
+                query: Natural language query about expenses
+            """
+            return self._query_expenses(query)
+        
+        @tool
+        def get_credit_card_transactions(start_date: str = "", end_date: str = "") -> str:
+            """Get credit card transactions.
+            
+            Args:
+                start_date: Optional start date filter
+                end_date: Optional end date filter
+            """
+            return self._get_credit_card_transactions({"start_date": start_date, "end_date": end_date} if start_date or end_date else {})
+        
+        @tool
+        def calculate_spending(category: str = "", time_period: str = "") -> str:
+            """Calculate total spending.
+            
+            Args:
+                category: Optional category filter
+                time_period: Optional time period filter
+            """
+            return self._calculate_spending({"category": category, "time_period": time_period})
+        
+        return [query_expenses, get_credit_card_transactions, calculate_spending]
     
     def _query_expenses(self, query: str) -> str:
         """Query expenses using vector search"""
@@ -147,19 +166,14 @@ Always provide clear, actionable insights about expenses."""
         except Exception as e:
             return f"Error calculating spending: {str(e)}"
     
-    def _create_agent(self) -> AgentExecutor:
-        """Create the expense agent"""
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", self.system_prompt),
-            MessagesPlaceholder(variable_name="chat_history", optional=True),
-            ("human", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
-        ])
-        
-        agent = create_openai_tools_agent(self.llm, self.tools, prompt)
-        return AgentExecutor(agent=agent, tools=self.tools, verbose=True)
-    
     def run(self, query: str) -> str:
         """Execute expense agent"""
-        result = self.agent.invoke({"input": query})
-        return result["output"]
+        result = self.agent.invoke({"messages": [{"role": "user", "content": query}]})
+        messages = result.get("messages", [])
+        if messages:
+            last_message = messages[-1]
+            if hasattr(last_message, 'content'):
+                return last_message.content
+            elif isinstance(last_message, dict):
+                return last_message.get('content', str(last_message))
+        return str(result)

@@ -1,18 +1,17 @@
 from typing import List
-from langchain.agents import AgentExecutor, create_openai_tools_agent
-from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.tools import Tool
+from langchain.agents import create_agent
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.tools import tool
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from config import Config
+from src.config import Config
 
 class EmailAgent:
     def __init__(self):
-        self.llm = ChatOpenAI(
-            model="gpt-4-turbo-preview",
-            openai_api_key=Config.OPENAI_API_KEY
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-pro",
+            google_api_key=Config.GOOGLE_API_KEY
         )
         
         self.system_prompt = """You are an Email Management Agent. Your role is to send, read, and manage emails for the user.
@@ -23,23 +22,38 @@ Tools available:
 
 Always compose professional, well-formatted emails."""
         
-        self.tools = self._create_tools()
-        self.agent = self._create_agent()
+        self.agent = create_agent(
+            model=self.llm,
+            tools=self._create_tools(),
+            system_prompt=self.system_prompt
+        )
     
-    def _create_tools(self) -> List[Tool]:
+    def _create_tools(self) -> List:
         """Create email-related tools"""
-        return [
-            Tool(
-                name="send_email",
-                func=self._send_email,
-                description="Send an email. Input should be a dict with 'to', 'subject', and 'body'."
-            ),
-            Tool(
-                name="draft_email",
-                func=self._draft_email,
-                description="Draft an email without sending. Input should be a dict with 'to', 'subject', and 'body'."
-            )
-        ]
+        
+        @tool
+        def send_email(to: str, subject: str, body: str) -> str:
+            """Send an email.
+            
+            Args:
+                to: Recipient email address
+                subject: Email subject
+                body: Email body content
+            """
+            return self._send_email({"to": to, "subject": subject, "body": body})
+        
+        @tool
+        def draft_email(to: str, subject: str, body: str) -> str:
+            """Draft an email without sending.
+            
+            Args:
+                to: Recipient email address
+                subject: Email subject
+                body: Email body content
+            """
+            return self._draft_email({"to": to, "subject": subject, "body": body})
+        
+        return [send_email, draft_email]
     
     def _send_email(self, input_data: str) -> str:
         """Send an email"""
@@ -82,20 +96,15 @@ Subject: {params['subject']}
         except Exception as e:
             return f"Error drafting email: {str(e)}"
     
-    def _create_agent(self) -> AgentExecutor:
-        """Create the email agent"""
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", self.system_prompt),
-            MessagesPlaceholder(variable_name="chat_history", optional=True),
-            ("human", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
-        ])
-        
-        agent = create_openai_tools_agent(self.llm, self.tools, prompt)
-        return AgentExecutor(agent=agent, tools=self.tools, verbose=True)
-    
     def run(self, query: str) -> str:
         """Execute email agent"""
-        result = self.agent.invoke({"input": query})
-        return result["output"]
+        result = self.agent.invoke({"messages": [{"role": "user", "content": query}]})
+        messages = result.get("messages", [])
+        if messages:
+            last_message = messages[-1]
+            if hasattr(last_message, 'content'):
+                return last_message.content
+            elif isinstance(last_message, dict):
+                return last_message.get('content', str(last_message))
+        return str(result)
 

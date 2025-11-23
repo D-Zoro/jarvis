@@ -1,6 +1,6 @@
-def main():
-from utils.telegram_handler import TelegramHandler
-from config import Config
+
+from src.utils.telegram_handler import TelegramHandler
+from src.config import Config
 
 def main():
     """

@@ -8,6 +8,8 @@ class Config:
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+    GOOGLE_API_KEY_PERSONALITY = os.getenv("GOOGLE_API_KEY_PERSONALITY", os.getenv("GOOGLE_API_KEY"))
     ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
     ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "your-jarvis-voice-id")
     
